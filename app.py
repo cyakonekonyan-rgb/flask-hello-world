@@ -1,37 +1,44 @@
 from flask import Flask, request, jsonify
-from ask_sdk_webservice_support.webservice_handler import WebserviceSkillHandler
-from ask_sdk_core.skill_builder import SkillBuilder
 
-sb = SkillBuilder()
 app = Flask(__name__)
 
-# LaunchRequest
-@sb.request_handler(can_handle_func=lambda handler_input:
-                    handler_input.request_envelope.request.object_type == "LaunchRequest")
-def launch_request_handler(handler_input):
-    speech = "でんすけせんせいを起動しました。何をしますか？"
-    return handler_input.response_builder.speak(speech).ask(speech).response
+@app.route('/', methods=['POST'])
+def alexa_webhook():
+    """ Alexa からのリクエストを受け取って返答する """
 
-# HelloIntent
-@sb.request_handler(can_handle_func=lambda handler_input:
-                    handler_input.request_envelope.request.intent.name == "HelloIntent")
-def hello_handler(handler_input):
-    speech = "こんにちは、私はでんすけせんせいです。"
-    return handler_input.response_builder.speak(speech).ask(speech).response
+    data = request.get_json()
 
-# Fallback
-@sb.request_handler(can_handle_func=lambda handler_input: True)
-def fallback_handler(handler_input):
-    return handler_input.response_builder.speak(
-        "その機能にはまだ対応していません。").ask(
-        "何をしますか？").response
+    # LaunchRequest（「開いて」で起動）
+    if data["request"]["type"] == "LaunchRequest":
+        return jsonify(build_response("でんすけせんせいを起動しました。何をしますか？"))
 
-skill_handler = WebserviceSkillHandler(skill=sb.create())
+    # IntentRequest
+    if data["request"]["type"] == "IntentRequest":
+        intent = data["request"]["intent"]["name"]
+        
+        if intent == "HelloIntent":
+            return jsonify(build_response("こんにちは、私はでんすけせんせいです。"))
 
-@app.post("/")
-def invoke_skill():
-    return skill_handler.verify_and_dispatch(request.data, request.headers)
+        return jsonify(build_response("その機能にはまだ対応していません。"))
 
-@app.get("/")
-def health():
+    return jsonify(build_response("リクエストを理解できませんでした。"))
+
+def build_response(text):
+    """ Alexa の JSON レスポンスを作成 """
+    return {
+        "version": "1.0",
+        "response": {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": text
+            },
+            "shouldEndSession": False
+        }
+    }
+
+@app.route('/', methods=['GET'])
+def root():
     return "Alexa Flask server is running."
+
+if __name__ == '__main__':
+    app.run()
