@@ -1,2 +1,3 @@
-Flask
-Gunicorn
+flask
+ask-sdk-core
+ask-sdk-webservice-support
