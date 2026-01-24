@@ -40,4 +40,3 @@ def build_response(text):
 def root():
     return "Alexa Flask server is running."
 
-if __name__ == '__main__':
