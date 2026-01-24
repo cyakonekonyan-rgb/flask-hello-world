@@ -41,4 +41,3 @@ def root():
     return "Alexa Flask server is running."
 
 if __name__ == '__main__':
-    app.run()
