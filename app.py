@@ -12,7 +12,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 def index():
     # ブラウザでアクセスした時に画像を表示する
     return '''
-    <h1>現在の畑の様子</h1>
+    <h1>現在の様子</h1>
     <img src="/static/photo.jpg" style="width:500px;">
     <p>更新時間: 自動で最新の画像が表示されます</p>
     '''
