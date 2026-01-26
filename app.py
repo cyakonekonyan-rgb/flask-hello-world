@@ -3,14 +3,15 @@ import time
 from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
+# 起動時の初期メッセージ
 current_weather = "起動中..."
 
 @app.route('/')
 def index():
     photo_path = 'static/photo.jpg'
-    # キャッシュ対策と更新時刻取得
+    # ブラウザのキャッシュ対策（画像のURLに付与するタイムスタンプ）
+    # ファイルが存在すればその更新日時、なければ現在の時刻を使用
     timestamp = os.path.getmtime(photo_path) if os.path.exists(photo_path) else time.time()
-    update_time_str = time.strftime('%m/%d %H:%M', time.localtime(timestamp))
 
     return render_template_string('''
     <!DOCTYPE html>
@@ -32,11 +33,11 @@ def index():
                 margin-bottom: 15px; 
                 border-left: 5px solid #2196f3; 
             }
-            /* 注意報（⚠️）がある行を赤く強調する設定 */
+            /* 注意報（⚠️）や撮影時刻がある行を強調する設定 */
             .warning { color: #d32f2f; font-weight: bold; background: #ffebee; padding: 2px 5px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
+            .photo-time-line { color: #455a64; font-weight: bold; font-size: 1rem; border-bottom: 1px solid #bbdefb; margin-bottom: 8px; padding-bottom: 4px; display: block; }
             .temp-line { font-weight: bold; color: #0d47a1; }
             img { max-width: 100%; height: auto; border-radius: 10px; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-            .update-time { font-size: 0.8rem; color: #666; margin: 10px 0; }
         </style>
     </head>
     <body>
@@ -44,26 +45,32 @@ def index():
             <h3>でんすけせんせい：飯詰の様子</h3>
             <div class="weather-box">
                 {% for line in weather_lines %}
-                    <div class="{% if '⚠️' in line %}warning{% elif '予報' in line %}temp-line{% endif %}">{{ line }}</div>
+                    {# '📸'が含まれる行（撮影時刻）や注意報の行の見た目を切り替える #}
+                    <div class="{% if '📸' in line %}photo-time-line{% elif '⚠️' in line %}warning{% elif '予報' in line %}temp-line{% endif %}">
+                        {{ line }}
+                    </div>
                 {% endfor %}
             </div>
-            <div class="update-time">📷 {{ update_time }} 更新</div>
+            {# ここにあった「XX/XX 更新」の1行を削除しました #}
             <img src="/static/photo.jpg?{{ time }}" alt="畑">
         </div>
     </body>
     </html>
     ''', 
     weather_lines=current_weather.split(" | "), 
-    time=timestamp, 
-    update_time=update_time_str
+    time=timestamp
     )
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     global current_weather
     if not os.path.exists('static'): os.makedirs('static')
+    
+    # 画像ファイルの保存
     if 'file' in request.files:
         request.files['file'].save(os.path.join('static', 'photo.jpg'))
+    
+    # 送信されてきた天気・時刻情報を保存
     current_weather = request.form.get('weather', 'データなし')
     return "OK", 200
 
