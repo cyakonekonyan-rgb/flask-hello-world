@@ -1,4 +1,5 @@
 import os
+import time
 from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
@@ -6,10 +7,16 @@ app = Flask(__name__)
 # 天気情報を保持する変数
 current_weather = "取得中..."
 
-# 1. ブラウザで見た時の画面（トップページ）
 @app.route('/')
 def index():
-    # シンプルなHTMLで画像と天気を表示
+    # 画像があるかどうかチェック
+    photo_path = 'static/photo.jpg'
+    if os.path.exists(photo_path):
+        # ファイルの更新日時を数値で取得（キャッシュ対策）
+        timestamp = os.path.getmtime(photo_path)
+    else:
+        timestamp = time.time() # なければ現在の時刻
+
     return render_template_string('''
     <!DOCTYPE html>
     <html lang="ja">
@@ -29,41 +36,36 @@ def index():
         <div class="container">
             <h1>現在の飯詰の様子</h1>
             <div class="weather-box">予報: {{ weather }}</div>
-            <img src="/static/photo.jpg?{{ time }}" alt="畑の様子">
-            <p style="color: #666; font-size: 0.8em;">※自動で10分おきに更新されます</p>
+            <img src="/static/photo.jpg?{{ time }}" alt="畑の様子" onerror="this.src='https://via.placeholder.com/500x300?text=Waiting+for+Photo...'">
+            <p style="color: #666; font-size: 0.8em;">※自動で更新されます</p>
         </div>
     </body>
     </html>
-    ''', weather=current_weather, time=os.path.getmtime('static/photo.jpg') if os.path.exists('static/photo.jpg') else 0)
+    ''', weather=current_weather, time=timestamp)
 
-# 2. 自宅PCからのアップロードを受け取る窓口
 @app.route('/upload', methods=['POST'])
 def upload_file():
     global current_weather
     
-    # 保存先フォルダ（static）がなければ作成
-    UPLOAD_FOLDER = 'static'
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
+    # フォルダ作成の徹底
+    try:
+        if not os.path.exists('static'):
+            os.makedirs('static')
+    except Exception as e:
+        print(f"Folder creation error: {e}")
 
-    # 送られてきたファイルの確認
     if 'file' not in request.files:
-        return "No file part", 400
+        return "No file", 400
     
     file = request.files['file']
-    if file.filename == '':
-        return "No selected file", 400
-
-    # 画像を static/photo.jpg として保存（上書き）
-    file.save(os.path.join(UPLOAD_FOLDER, 'photo.jpg'))
+    # 上書き保存
+    file.save(os.path.join('static', 'photo.jpg'))
     
-    # 同時に送られてきた天気テキストを受け取る（なければ「データなし」）
+    # 天気情報の受け取り
     current_weather = request.form.get('weather', 'データなし')
     
-    print(f"Update received: Weather={current_weather}")
     return "Upload successful", 200
 
 if __name__ == "__main__":
-    # Renderのポート番号に対応
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
