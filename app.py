@@ -4,19 +4,21 @@ from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
-# 天気情報を保持する変数
-current_weather = "取得中..."
+# 天気情報を保持する変数（初期値）
+current_weather = "自宅PCからのデータを待っています..."
 
 @app.route('/')
 def index():
-    # 画像があるかどうかチェック
+    # 画像の有無を確認し、キャッシュ対策のタイムスタンプを作成
     photo_path = 'static/photo.jpg'
     if os.path.exists(photo_path):
-        # ファイルの更新日時を数値で取得（キャッシュ対策）
         timestamp = os.path.getmtime(photo_path)
+        update_time_str = time.strftime('%m/%d %H:%M', time.localtime(timestamp))
     else:
-        timestamp = time.time() # なければ現在の時刻
+        timestamp = time.time()
+        update_time_str = "---"
 
+    # HTMLテンプレート
     return render_template_string('''
     <!DOCTYPE html>
     <html lang="ja">
@@ -25,43 +27,103 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>でんすけせんせい - 飯詰の様子</title>
         <style>
-            body { font-family: sans-serif; text-align: center; background-color: #f0f4f8; padding: 20px; }
-            .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; }
-            h1 { color: #2c3e50; }
-            .weather-box { font-size: 1.2em; color: #007bff; margin-bottom: 20px; font-weight: bold; }
-            img { max-width: 100%; height: auto; border-radius: 10px; border: 5px solid #fff; }
+            body { 
+                font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; 
+                text-align: center; 
+                background-color: #f4f7f9; 
+                padding: 10px; 
+                color: #333; 
+            }
+            .container { 
+                background: white; 
+                padding: 20px; 
+                border-radius: 20px; 
+                box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+                display: inline-block; 
+                max-width: 95%; 
+            }
+            h1 { color: #2c3e50; margin-bottom: 15px; font-size: 1.4rem; }
+            .weather-container {
+                background: #e3f2fd;
+                padding: 15px;
+                border-radius: 12px;
+                color: #0d47a1;
+                font-size: 1rem;
+                margin-bottom: 20px;
+                text-align: left;
+                line-height: 1.8;
+                border: 1px solid #bbdefb;
+            }
+            .day-line {
+                border-bottom: 1px dashed #bbdefb;
+                padding: 5px 0;
+            }
+            .day-line:last-child { border-bottom: none; }
+            img { 
+                max-width: 100%; 
+                height: auto; 
+                border-radius: 10px; 
+                box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+            }
+            .footer { 
+                margin-top: 15px; 
+                color: #999; 
+                font-size: 0.75rem; 
+            }
+            .update-badge {
+                display: inline-block;
+                background: #6c757d;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                margin-bottom: 10px;
+            }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>現在の飯詰の様子</h1>
-            <div class="weather-box">予報: {{ weather }}</div>
-            <img src="/static/photo.jpg?{{ time }}" alt="畑の様子" onerror="this.src='https://via.placeholder.com/500x300?text=Waiting+for+Photo...'">
-            <p style="color: #666; font-size: 0.8em;">※自動で更新されます</p>
+            <h1>でんすけせんせい：飯詰の畑</h1>
+            
+            <div class="weather-container">
+                {% for line in weather_lines %}
+                    <div class="day-line">{{ line }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="update-badge">カメラ更新: {{ update_time }}</div>
+            <br>
+            <img src="/static/photo.jpg?{{ time }}" alt="畑の様子" onerror="this.src='https://via.placeholder.com/600x400?text=Wait+for+Upload...'">
+            
+            <div class="footer">
+                青森県五所川原市飯詰より自動配信中
+            </div>
         </div>
     </body>
     </html>
-    ''', weather=current_weather, time=timestamp)
+    ''', 
+    # 天気情報を「 | 」で区切って1行ずつ表示するようにリスト化
+    weather_lines=current_weather.split(" | "), 
+    time=timestamp, 
+    update_time=update_time_str
+    )
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
     global current_weather
     
-    # フォルダ作成の徹底
-    try:
-        if not os.path.exists('static'):
-            os.makedirs('static')
-    except Exception as e:
-        print(f"Folder creation error: {e}")
+    # フォルダ作成の確認
+    if not os.path.exists('static'):
+        os.makedirs('static')
 
     if 'file' not in request.files:
         return "No file", 400
     
+    # 画像の保存
     file = request.files['file']
-    # 上書き保存
     file.save(os.path.join('static', 'photo.jpg'))
     
-    # 天気情報の受け取り
+    # 天気情報の保存（今日・明日・明後日の3日分）
     current_weather = request.form.get('weather', 'データなし')
     
     return "Upload successful", 200
