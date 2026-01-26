@@ -1,30 +1,31 @@
-from flask import Flask, request, send_from_directory
+# --- Render側の app.py 抜粋 ---
+from flask import Flask, request, render_template_string
 import os
 
 app = Flask(__name__)
-
-# 画像を保存するディレクトリ
-UPLOAD_FOLDER = 'static'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+# 天気を保存する一時的な変数
+current_weather = "取得中..."
 
 @app.route('/')
 def index():
-    # ブラウザでアクセスした時に画像を表示する
-    return '''
-    <h1>現在の様子</h1>
+    # HTMLの中に天気を表示する場所を作る
+    return render_template_string('''
+    <h1>現在の飯詰の様子</h1>
+    <p style="font-size: 20px; color: blue;">予報: {{ weather }}</p>
     <img src="/static/photo.jpg" style="width:500px;">
-    <p>更新時間: 自動で最新の画像が表示されます</p>
-    '''
+    ''', weather=current_weather)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    # 自宅PCから送られてきた画像を保存する
+    global current_weather
     if 'file' not in request.files:
-        return "ファイルがありません", 400
+        return "No file", 400
+    
+    # 画像の保存
     file = request.files['file']
-    file.save(os.path.join(UPLOAD_FOLDER, 'photo.jpg'))
-    return "アップロード成功", 200
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)
+    file.save('static/photo.jpg')
+    
+    # 天気情報の保存
+    current_weather = request.form.get('weather', 'データなし')
+    
+    return "OK", 200
