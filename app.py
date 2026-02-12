@@ -3,31 +3,29 @@ import time
 from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
-
-# 起動時の初期メッセージ
 current_weather = "週間天気を受信中..."
 
-# --- 重要：static の絶対パスを固定する ---
 STATIC_DIR = os.path.join(app.root_path, "static")
 PHOTO_PATH = os.path.join(STATIC_DIR, "photo.jpg")
 VIDEO_PATH = os.path.join(STATIC_DIR, "rader_anime.mp4")
 
 
-@app.route('/')
+@app.route("/")
 def index():
-    # ブラウザのキャッシュ対策（写真の更新時刻を使う）
+    os.makedirs(STATIC_DIR, exist_ok=True)
+
     timestamp = os.path.getmtime(PHOTO_PATH) if os.path.exists(PHOTO_PATH) else time.time()
-
-    # 動画が存在するか確認（ログも出す）
-    video_exists = os.path.exists(VIDEO_PATH)
     photo_exists = os.path.exists(PHOTO_PATH)
+    video_exists = os.path.exists(VIDEO_PATH)
 
-    print("=== INDEX DEBUG ===")
-    print("PHOTO_PATH:", PHOTO_PATH, "exists:", photo_exists)
-    print("VIDEO_PATH:", VIDEO_PATH, "exists:", video_exists)
+    print("=== INDEX DEBUG ===", flush=True)
+    print("PHOTO_PATH:", PHOTO_PATH, "exists:", photo_exists,
+          "size:", (os.path.getsize(PHOTO_PATH) if photo_exists else "-"), flush=True)
+    print("VIDEO_PATH:", VIDEO_PATH, "exists:", video_exists,
+          "size:", (os.path.getsize(VIDEO_PATH) if video_exists else "-"), flush=True)
 
     return render_template_string(
-        '''
+        """
         <!DOCTYPE html>
         <html lang="ja">
         <head>
@@ -37,21 +35,11 @@ def index():
             <style>
                 body { font-family: sans-serif; text-align: center; background-color: #f0f4f8; padding: 10px; color: #333; }
                 .container { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: inline-block; max-width: 98%; }
-                .weather-box {
-                    background: #e3f2fd;
-                    padding: 12px;
-                    border-radius: 12px;
-                    text-align: left;
-                    font-size: 0.85rem;
-                    line-height: 1.5;
-                    margin-bottom: 15px;
-                    border-left: 5px solid #2196f3;
-                }
+                .weather-box { background: #e3f2fd; padding: 12px; border-radius: 12px; text-align: left; font-size: 0.85rem; line-height: 1.5; margin-bottom: 15px; border-left: 5px solid #2196f3; }
                 .photo-time-line { color: #455a64; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #bbdefb; margin-bottom: 8px; padding-bottom: 4px; display: block; }
                 .warning { color: #d32f2f; font-weight: bold; background: #ffebee; padding: 3px 6px; border-radius: 4px; display: block; margin: 4px 0; border: 1px solid #ffcdd2; }
                 .weekly-line { border-bottom: 1px dashed #cfd8dc; padding: 2px 0; }
                 .weekly-line:last-child { border-bottom: none; }
-
                 .media-content { width: 100%; max-width: 640px; margin: 0 auto; }
                 img, video { width: 100%; height: auto; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 10px; display: block; }
             </style>
@@ -77,12 +65,9 @@ def index():
                         <p style="font-size: 0.7rem; color: #666; margin-bottom: 2px;">▼雨雲レーダー（アニメ）</p>
                         <video controls autoplay loop muted playsinline poster="/static/photo.jpg?{{ time }}">
                             <source src="/static/rader_anime.mp4?{{ time }}" type="video/mp4">
-                            このブラウザは video 再生に対応していません
                         </video>
                     {% else %}
-                        <p style="font-size: 0.75rem; color: #999; margin: 6px 0;">
-                            （動画ファイルがまだありません）
-                        </p>
+                        <p style="font-size: 0.75rem; color: #999; margin: 6px 0;">（動画ファイルがまだありません）</p>
                     {% endif %}
 
                     <p style="font-size: 0.7rem; color: #666; margin-bottom: 2px;">▼現在の外の様子</p>
@@ -91,41 +76,47 @@ def index():
             </div>
         </body>
         </html>
-        ''',
+        """,
         weather_lines=current_weather.split(" | "),
         time=timestamp,
         video_exists=video_exists
     )
 
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
+@app.route("/upload", methods=["POST"])
+def upload():
     global current_weather
     os.makedirs(STATIC_DIR, exist_ok=True)
 
-    print("=== UPLOAD DEBUG ===")
-    print("STATIC_DIR:", STATIC_DIR)
+    print("=== UPLOAD DEBUG ===", flush=True)
+    print("STATIC_DIR:", STATIC_DIR, flush=True)
+    print("request.files keys:", list(request.files.keys()), flush=True)
+    print("form keys:", list(request.form.keys()), flush=True)
 
-    # 画像保存
-    if 'file' in request.files and request.files['file'].filename:
-        request.files['file'].save(PHOTO_PATH)
-        print("Saved photo:", PHOTO_PATH, "size:", os.path.getsize(PHOTO_PATH))
+    # 画像
+    if "file" in request.files and request.files["file"].filename:
+        f = request.files["file"]
+        print("photo filename:", f.filename, "content_type:", f.content_type, flush=True)
+        f.save(PHOTO_PATH)
+        print("saved photo size:", os.path.getsize(PHOTO_PATH), flush=True)
     else:
-        print("No photo file received")
+        print("NO photo received", flush=True)
 
-    # 動画保存
-    if 'video' in request.files and request.files['video'].filename:
-        # 上書き確実化
+    # 動画
+    if "video" in request.files and request.files["video"].filename:
+        v = request.files["video"]
+        print("video filename:", v.filename, "content_type:", v.content_type, flush=True)
         if os.path.exists(VIDEO_PATH):
             os.remove(VIDEO_PATH)
-            print("Removed old video:", VIDEO_PATH)
-
-        request.files['video'].save(VIDEO_PATH)
-        print("Saved video:", VIDEO_PATH, "size:", os.path.getsize(VIDEO_PATH))
+            print("removed old video", flush=True)
+        v.save(VIDEO_PATH)
+        print("saved video size:", os.path.getsize(VIDEO_PATH), flush=True)
     else:
-        print("No video file received")
+        print("NO video received", flush=True)
 
-    current_weather = request.form.get('weather', 'データなし')
+    current_weather = request.form.get("weather", "データなし")
+    print("weather length:", len(current_weather), flush=True)
+
     return "OK", 200
 
 
