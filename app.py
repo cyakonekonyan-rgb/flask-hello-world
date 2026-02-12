@@ -9,8 +9,13 @@ current_weather = "週間天気を受信中..."
 @app.route('/')
 def index():
     photo_path = 'static/photo.jpg'
+    video_path = 'static/rader_anime.mp4'
+    
     # ブラウザのキャッシュ対策
     timestamp = os.path.getmtime(photo_path) if os.path.exists(photo_path) else time.time()
+    
+    # 動画が存在するか確認
+    video_exists = os.path.exists(video_path)
 
     return render_template_string('''
     <!DOCTYPE html>
@@ -32,14 +37,14 @@ def index():
                 margin-bottom: 15px; 
                 border-left: 5px solid #2196f3; 
             }
-            /* 撮影時刻のデザイン */
             .photo-time-line { color: #455a64; font-weight: bold; font-size: 0.95rem; border-bottom: 1px solid #bbdefb; margin-bottom: 8px; padding-bottom: 4px; display: block; }
-            /* 注意報の強調表示 */
             .warning { color: #d32f2f; font-weight: bold; background: #ffebee; padding: 3px 6px; border-radius: 4px; display: block; margin: 4px 0; border: 1px solid #ffcdd2; }
-            /* 各日の予報の区切り線 */
             .weekly-line { border-bottom: 1px dashed #cfd8dc; padding: 2px 0; }
             .weekly-line:last-child { border-bottom: none; }
-            img, video { max-width: 100%; height: auto; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 10px; }
+            
+            /* 画像と動画の枠組み */
+            .media-content { width: 100%; max-width: 640px; margin: 0 auto; }
+            img, video { width: 100%; height: auto; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 10px; display: block; }
         </style>
     </head>
     <body>
@@ -57,18 +62,25 @@ def index():
                 {% endfor %}
             </div>
             
-            {# レーダー動画の再生 #}
-            <video autoplay loop muted playsinline>
-                <source src="/static/rader_anime.mp4?{{ time }}" type="video/mp4">
-            </video>
+            <div class="media-content">
+                {# 動画が存在する場合のみタグを出す #}
+                {% if video_exists %}
+                    <p style="font-size: 0.7rem; color: #666; margin-bottom: 2px;">▼雨雲レーダー（アニメ）</p>
+                    <video autoplay loop muted playsinline poster="/static/photo.jpg?{{ time }}">
+                        <source src="/static/rader_anime.mp4?{{ time }}" type="video/mp4">
+                    </video>
+                {% endif %}
 
-            <img src="/static/photo.jpg?{{ time }}" alt="飯詰の風景">
+                <p style="font-size: 0.7rem; color: #666; margin-bottom: 2px;">▼現在の外の様子</p>
+                <img src="/static/photo.jpg?{{ time }}" alt="飯詰の風景">
+            </div>
         </div>
     </body>
     </html>
     ''', 
     weather_lines=current_weather.split(" | "), 
-    time=timestamp
+    time=timestamp,
+    video_exists=video_exists
     )
 
 @app.route('/upload', methods=['POST'])
@@ -76,13 +88,14 @@ def upload_file():
     global current_weather
     if not os.path.exists('static'): os.makedirs('static')
     
-    # 画像の保存
     if 'file' in request.files:
         request.files['file'].save(os.path.join('static', 'photo.jpg'))
     
-    # 動画の保存
     if 'video' in request.files:
-        request.files['video'].save(os.path.join('static', 'rader_anime.mp4'))
+        # 一旦削除してから保存することで上書きを確実にする
+        v_path = os.path.join('static', 'rader_anime.mp4')
+        if os.path.exists(v_path): os.remove(v_path)
+        request.files['video'].save(v_path)
 
     current_weather = request.form.get('weather', 'データなし')
     return "OK", 200
