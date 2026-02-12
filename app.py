@@ -24,7 +24,7 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>でんすけせんせい - 飯詰</title>
+        <title>五所川原市の気象情報</title>
         <style>
             body { 
                 font-family: sans-serif; 
@@ -105,7 +105,7 @@ def index():
     <body>
         <div class="container">
             <h3 style="margin: 10px 0;">
-                でんすけせんせい：飯詰
+                五所川原市の気象情報
             </h3>
 
             <div class="weather-box">
