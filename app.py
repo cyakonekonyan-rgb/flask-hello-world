@@ -39,7 +39,7 @@ def index():
             /* 各日の予報の区切り線 */
             .weekly-line { border-bottom: 1px dashed #cfd8dc; padding: 2px 0; }
             .weekly-line:last-child { border-bottom: none; }
-            img { max-width: 100%; height: auto; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            img, video { max-width: 100%; height: auto; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 10px; }
         </style>
     </head>
     <body>
@@ -56,7 +56,12 @@ def index():
                     {% endif %}
                 {% endfor %}
             </div>
-            {# ここから不要な「更新」行を削除済み #}
+            
+            {# レーダー動画の再生 #}
+            <video autoplay loop muted playsinline>
+                <source src="/static/rader_anime.mp4?{{ time }}" type="video/mp4">
+            </video>
+
             <img src="/static/photo.jpg?{{ time }}" alt="飯詰の風景">
         </div>
     </body>
@@ -70,8 +75,15 @@ def index():
 def upload_file():
     global current_weather
     if not os.path.exists('static'): os.makedirs('static')
+    
+    # 画像の保存
     if 'file' in request.files:
         request.files['file'].save(os.path.join('static', 'photo.jpg'))
+    
+    # 動画の保存
+    if 'video' in request.files:
+        request.files['video'].save(os.path.join('static', 'rader_anime.mp4'))
+
     current_weather = request.form.get('weather', 'データなし')
     return "OK", 200
 
