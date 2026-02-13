@@ -1,11 +1,13 @@
 import os
 import time
+from datetime import datetime, timedelta
 from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
 # 起動時の初期メッセージ
 current_weather = "週間天気を受信中..."
+radar_title = "雨雲レーダー（アニメ）"  # デフォルトタイトル
 
 @app.route('/')
 def index():
@@ -124,7 +126,7 @@ def index():
 
                 {% if video_exists %}
                     <p style="font-size: 0.7rem; color: #666; margin-bottom: 2px;">
-                        ▼雨雲レーダー（アニメ）
+                        ▼{{ radar_title }}
                     </p>
 
                     <!-- ✅ poster 削除：写真が表示されない -->
@@ -146,12 +148,14 @@ def index():
     ''', 
     weather_lines=current_weather.split(" | "), 
     time=timestamp,
-    video_exists=video_exists
+    video_exists=video_exists,
+    radar_title=radar_title
     )
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global current_weather
+    global current_weather, radar_title
+    
     if not os.path.exists('static'):
         os.makedirs('static')
     
@@ -165,6 +169,13 @@ def upload_file():
         request.files['video'].save(v_path)
 
     current_weather = request.form.get('weather', 'データなし')
+    
+    # 雨雲レーダータイトルを受信（クライアントから送られた場合）
+    received_radar_title = request.form.get('radar_title')
+    if received_radar_title:
+        radar_title = received_radar_title
+        print(f"雨雲レーダータイトル更新: {radar_title}")
+    
     return "OK", 200
 
 if __name__ == "__main__":
