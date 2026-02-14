@@ -8,6 +8,7 @@ app = Flask(__name__)
 # 起動時の初期メッセージ
 current_weather = "週間天気を受信中..."
 radar_title = "雨雲レーダー（アニメ）"  # デフォルトタイトル
+photo_datetime = "▼現在の外の様子"  # デフォルト表示
 
 @app.route('/')
 def index():
@@ -136,7 +137,7 @@ def index():
                 {% endif %}
 
                 <p style="font-size: 0.7rem; color: #666; margin-bottom: 2px;">
-                    ▼現在の外の様子
+                    ▼{{ photo_datetime }}
                 </p>
 
                 <img src="/static/photo.jpg?{{ time }}" alt="飯詰の風景">
@@ -149,12 +150,13 @@ def index():
     weather_lines=current_weather.split(" | "), 
     time=timestamp,
     video_exists=video_exists,
-    radar_title=radar_title
+    radar_title=radar_title,
+    photo_datetime=photo_datetime
     )
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global current_weather, radar_title
+    global current_weather, radar_title, photo_datetime
     
     if not os.path.exists('static'):
         os.makedirs('static')
@@ -175,6 +177,12 @@ def upload_file():
     if received_radar_title:
         radar_title = received_radar_title
         print(f"雨雲レーダータイトル更新: {radar_title}")
+    
+    # 撮影日時を受信（クライアントから送られた場合）
+    received_photo_datetime = request.form.get('photo_datetime')
+    if received_photo_datetime:
+        photo_datetime = received_photo_datetime
+        print(f"撮影日時更新: {photo_datetime}")
     
     return "OK", 200
 
