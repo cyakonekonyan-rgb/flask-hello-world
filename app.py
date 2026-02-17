@@ -24,7 +24,7 @@ def index():
     radar_video_exists = os.path.exists(radar_video_path)
     tenki_video_exists = os.path.exists(tenki_video_path)
 
-    return render_template_string('''
+    response = app.make_response(render_template_string('''
     <!DOCTYPE html>
     <html lang="ja">
     <head>
@@ -117,8 +117,23 @@ def index():
 
     <body>
         <div class="container">
-            <h3 style="margin: 10px 0;">
+            <h3 style="margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 10px;">
                 五所川原市の気象情報
+                <button onclick="forceReload()" style="
+                    font-size: 1.1rem;
+                    background: #2196f3;
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    width: 36px;
+                    height: 36px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                    flex-shrink: 0;
+                " title="最新情報に更新">🔄</button>
             </h3>
 
             <div class="weather-box">
@@ -163,17 +178,28 @@ def index():
 
             </div>
         </div>
+    <script>
+        function forceReload() {
+            // iPhoneキャッシュ対策: URLにタイムスタンプを付けて強制リロード
+            var url = location.href.split('?')[0] + '?t=' + Date.now();
+            location.replace(url);
+        }
+    </script>
     </body>
     </html>
-    ''', 
-    weather_lines=current_weather.split(" | "), 
+    ''',
+    weather_lines=current_weather.split(" | "),
     time=timestamp,
     radar_video_exists=radar_video_exists,
     tenki_video_exists=tenki_video_exists,
     radar_title=radar_title,
     photo_datetime=photo_datetime,
     tenki_title=tenki_title
-    )
+    ))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
